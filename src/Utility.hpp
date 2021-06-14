@@ -32,6 +32,8 @@ struct Matrix4x4 {
 	static Matrix4x4 RotationZ(float theta);
 	static Matrix4x4 Translation(float x, float y, float z);
 	static Matrix4x4 Projection(float zNear, float zFar, float fov, float aspectRatio);
+	static Matrix4x4 PointAt(const Vector& pos, const Vector& target, const Vector& up);
+	static Matrix4x4 QuickInverse(const Matrix4x4& mat);
 };
 
 Vector operator*(const Matrix4x4& mat, const Vector& u);

@@ -14,6 +14,7 @@ SFML_Control::SFML_Control()
 	this->renderer = new Renderer3D(this->window.getSize());
 
 	this->running = true;
+	this->isPaused = false;
 }
 
 SFML_Control::~SFML_Control()
@@ -28,6 +29,11 @@ bool SFML_Control::isRunning()
 void SFML_Control::update()
 {
 	this->pollEvents();
+	if (!this->isPaused) {
+		this->renderer->clear();
+		this->renderer->update(this->clock.getElapsedTime().asSeconds());
+	}
+	this->clock.restart();
 }
 
 void SFML_Control::pollEvents()
@@ -39,25 +45,21 @@ void SFML_Control::pollEvents()
 		if (event.type == sf::Event::Closed)
 			this->running = false;
 
-		if (event.type == sf::Event::MouseButtonPressed) {
-
-		}
-		else if (event.type == sf::Event::MouseButtonReleased) {
-
-		}
 		else if (event.type == sf::Event::KeyPressed) {
 			if (event.key.code == sf::Keyboard::Escape)
 				this->running = false;
+			if (event.key.code == sf::Keyboard::Space)
+				this->isPaused = !isPaused;
 		}
+		else if (this->isPaused)continue;
 	}
 }
 
 void SFML_Control::render()
-{
+{	
 	this->window.clear();
 
-	this->renderer->render(this->window, this->clock.getElapsedTime().asSeconds());
-	this->clock.restart();
+	this->renderer->render(this->window);
 
 	//this->drawAxis();
 

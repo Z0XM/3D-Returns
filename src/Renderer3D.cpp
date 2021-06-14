@@ -1,5 +1,4 @@
 #include "Renderer3D.hpp"
-#include "BlinkingColors.hpp"
 #include <iostream>
 #include <algorithm>
 
@@ -7,11 +6,12 @@
 Renderer3D::Renderer3D(const sf::Vector2u& winSize)
 {
 	renderingMode = RENDER_MODE::TRIANGLE;
-	cube.loadFromObjectFile("data/idk.obj");
+	cube.loadFromObjectFile("data/teapot.obj");
 
 	matProj = Matrix4x4::Projection(0.1, 1000.0f, 90.0f, (float)winSize.y / (float)winSize.x);
 
 	fTheta = 0.f;
+	yaw = 0.f;
 
 	camera = { 0,0,0 };
 
@@ -41,7 +41,7 @@ void Renderer3D::clearPixels()
 
 void Renderer3D::scaleToView(Triangle& tri, const sf::Vector2f& winSize)
 {
-	Vector offset{ 1, 1 };
+	Vector offset{ 1, 1, 0 };
 	tri[0] = tri[0] + offset;
 	tri[1] = tri[1] + offset;
 	tri[2] = tri[2] + offset;
@@ -98,59 +98,49 @@ void Renderer3D::drawTriangleToPixels(const Triangle& tri)
 	}
 }
 
-
-
-void Renderer3D::updatePixels(float dt)
+void Renderer3D::clear()
 {
-	fTheta += 0.1;
-	
-	Matrix4x4 matWorld = 
-		Matrix4x4::Identity() *
-		Matrix4x4::RotationZ(fTheta) *
-		Matrix4x4::RotationX(fTheta) *
-		Matrix4x4::Translation(0, 0, 5.f);
-
-	sf::Color COLOR = sf::Color::White;
-	COLOR.a = 0;
-
-	for (auto& tri : cube.tris)
-	{
-		Triangle triTransformed = matWorld * tri;
-
-		Vector normal = unit(cross(triTransformed[1] - triTransformed[0], triTransformed[2] - triTransformed[0]));
-
-		if (dot(normal, triTransformed[0] - camera) < 0.0f) {
-
-			float dp = dot(unit({ 0, 0, -1 }), normal);  //  lightDir * normal
-
-			Triangle triProjected = matProj * triTransformed;
-
-			triProjected[0] = triProjected[0] / triProjected[0].w;
-			triProjected[1] = triProjected[1] / triProjected[1].w;
-			triProjected[2] = triProjected[2] / triProjected[2].w;
-
-			this->scaleToView(triProjected, sf::Vector2f(pixel_x, pixel_y));
-
-			triProjected.color = COLOR + sf::Color(0, 0, 0, 255 * dp);
-			this->drawTriangleToPixels(triProjected);
-		}
+	if (renderingMode == RENDER_MODE::PIXEL) {
+		this->clearPixels();
+	}
+	else if (renderingMode == RENDER_MODE::TRIANGLE){
+		this->trianglestoRaster.clear();
 	}
 }
 
-void Renderer3D::drawTriangles(sf::RenderWindow& window, float dt)
+void Renderer3D::update(float dt)
 {
-	fTheta += 0.05;
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))camera.y += 5 * dt;
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))camera.y -= 5 * dt;
+
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))camera.x -= 5 * dt;
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))camera.x += 5 * dt;
+
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))yaw -= 2 * dt;
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))yaw += 2 * dt;
+
+	Vector forward = lookDir * (8.0f * dt);
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))camera = camera + forward;
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))camera = camera - forward;
+
 
 	Matrix4x4 matWorld =
 		Matrix4x4::Identity() *
-		Matrix4x4::RotationZ(fTheta) *
+		Matrix4x4::RotationZ(fTheta * 0.5f) *
 		Matrix4x4::RotationX(fTheta) *
 		Matrix4x4::Translation(0, 0, 5.f);
 
+	Vector up{ 0.f,1.f,0.f };
+	Vector target{ 0.f, 0.f, 1.f };
+	Matrix4x4 matCameraRot = Matrix4x4::RotationY(yaw);
+	lookDir = matCameraRot * target;
+	target = camera + lookDir;
+
+	Matrix4x4 matCamera = Matrix4x4::PointAt(camera, target, up);
+	Matrix4x4 matView = Matrix4x4::QuickInverse(matCamera);
+
 	sf::Color COLOR = sf::Color::White;
 	COLOR.a = 0;
-
-	std::vector<Triangle> drawables;
 
 	for (auto& tri : cube.tris)
 	{
@@ -159,10 +149,10 @@ void Renderer3D::drawTriangles(sf::RenderWindow& window, float dt)
 		Vector normal = unit(cross(triTransformed[1] - triTransformed[0], triTransformed[2] - triTransformed[0]));
 
 		if (dot(normal, triTransformed[0] - camera) < 0.0f) {
+			
+			Triangle triViewed = matView * triTransformed;
 
-			float dp = dot(unit({ 0, 0, -1 }), normal);  //  lightDir * normal
-
-			Triangle triProjected = matProj * triTransformed;
+			Triangle triProjected = matProj * triViewed;
 
 			triProjected[0] = triProjected[0] / triProjected[0].w;
 			triProjected[1] = triProjected[1] / triProjected[1].w;
@@ -170,22 +160,18 @@ void Renderer3D::drawTriangles(sf::RenderWindow& window, float dt)
 
 			this->scaleToView(triProjected, sf::Vector2f(pixel_x, pixel_y));
 
-			triProjected.color = COLOR + sf::Color(0, 0, 0, 255 * dp);
-			drawables.push_back(triProjected);
+			float dp = dot(unit({ 0, 0, -1 }), normal);  //  lightDir * normal
+			triProjected.color = sf::Color(COLOR.r * dp, COLOR.g * dp, COLOR.b * dp);
+			
+			if(this->renderingMode == RENDER_MODE::PIXEL)this->drawTriangleToPixels(triProjected);
+			else if(this->renderingMode == RENDER_MODE::TRIANGLE)trianglestoRaster.push_back(triProjected);
 		}
 	}
 
-	sort(drawables.begin(), drawables.end(), [](Triangle& a, Triangle& b) {
-		return (a[0].z + a[1].z + a[2].z) / 3 > (b[0].z + b[1].z + b[2].z) / 3;
-	});
-
-	for (auto& tri : drawables) {
-		sf::Vertex faces[3] = {
-			{{tri[0].x, tri[0].y}, tri.color },
-			{{tri[1].x, tri[1].y}, tri.color},
-			{{tri[2].x, tri[2].y}, tri.color}
-		};
-		window.draw(faces, 3, sf::Triangles);
+	if (this->renderingMode == RENDER_MODE::TRIANGLE) {
+		sort(trianglestoRaster.begin(), trianglestoRaster.end(), [](Triangle& a, Triangle& b) {
+			return (a[0].z + a[1].z + a[2].z) / 3.0f > (b[0].z + b[1].z + b[2].z) / 3.0f;
+		});
 	}
 }
 
@@ -194,15 +180,32 @@ void Renderer3D::drawPixels(sf::RenderWindow& window)
 	window.draw(pixels, pixel_x * pixel_y, sf::Points);
 }
 
-void Renderer3D::render(sf::RenderWindow& window, float dt)
+void Renderer3D::drawTriangles(sf::RenderWindow& window)
+{
+	for (auto& tri : trianglestoRaster) {
+		sf::Vertex faces[3] = {
+			{{tri[0].x, tri[0].y}, tri.color },
+			{{tri[1].x, tri[1].y}, tri.color},
+			{{tri[2].x, tri[2].y}, tri.color}
+		};
+		sf::Vertex lines[4] = {
+			{{tri[0].x, tri[0].y}, sf::Color::Red },
+			{{tri[1].x, tri[1].y}, sf::Color::Red},
+			{{tri[2].x, tri[2].y}, sf::Color::Red},
+			{{tri[0].x, tri[0].y}, sf::Color::Red }
+		};
+		window.draw(faces, 3, sf::Triangles);
+		//window.draw(lines, 4, sf::LinesStrip);
+	}
+}
+
+void Renderer3D::render(sf::RenderWindow& window)
 {
 	if (renderingMode == RENDER_MODE::PIXEL) {
-		this->clearPixels();
-		this->updatePixels(dt);
 		this->drawPixels(window);
 	}
 
 	else if (renderingMode == RENDER_MODE::TRIANGLE){
-		this->drawTriangles(window, dt);
+		this->drawTriangles(window);
 	}
 }

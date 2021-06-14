@@ -146,14 +146,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="src\BlinkingColors.cpp" />
     <ClCompile Include="src\Renderer3D.cpp" />
     <ClCompile Include="src\SFML_Control.cpp" />
     <ClCompile Include="src\Utility.cpp" />
     <ClCompile Include="src\Vector.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\BlinkingColors.hpp" />
     <ClInclude Include="src\Renderer3D.hpp" />
     <ClInclude Include="src\SFML_Control.hpp" />
     <ClInclude Include="src\Utility.hpp" />

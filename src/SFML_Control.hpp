@@ -7,6 +7,7 @@ private:
 	sf::RenderWindow window;
 	Renderer3D* renderer;
 	bool running;
+	bool isPaused;
 
 	sf::Clock clock;
 

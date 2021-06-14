@@ -58,10 +58,10 @@ Matrix4x4 Matrix4x4::RotationX(float theta)
 {
 	Matrix4x4 mat;
 	mat.m[0][0] = 1;
-	mat.m[1][1] = cosf(theta * 0.5f);
-	mat.m[1][2] = sinf(theta * 0.5f);
-	mat.m[2][1] = -sinf(theta * 0.5f);
-	mat.m[2][2] = cosf(theta * 0.5f);
+	mat.m[1][1] = cosf(theta);
+	mat.m[1][2] = sinf(theta);
+	mat.m[2][1] = -sinf(theta);
+	mat.m[2][2] = cosf(theta);
 	mat.m[3][3] = 1;
 	return mat;
 }
@@ -69,12 +69,12 @@ Matrix4x4 Matrix4x4::RotationX(float theta)
 Matrix4x4 Matrix4x4::RotationY(float theta)
 {
 	Matrix4x4 mat;
-	mat.m[0][0] = 1;
-	mat.m[1][1] = cosf(theta * 0.5f);
-	mat.m[1][2] = sinf(theta * 0.5f);
-	mat.m[2][1] = -sinf(theta * 0.5f);
-	mat.m[2][2] = cosf(theta * 0.5f);
-	mat.m[3][3] = 1;
+	mat.m[0][0] = cosf(theta);
+	mat.m[0][2] = sinf(theta);
+	mat.m[2][0] = -sinf(theta);
+	mat.m[1][1] = 1.0f;
+	mat.m[2][2] = cosf(theta);
+	mat.m[3][3] = 1.0f;
 	return mat;
 }
 
@@ -82,21 +82,21 @@ Matrix4x4 Matrix4x4::RotationZ(float theta)
 {
 	Matrix4x4 mat;
 	mat.m[0][0] = cosf(theta);
-	mat.m[0][2] = sinf(theta);
-	mat.m[2][0] = -sinf(theta);
-	mat.m[1][1] = 1;
-	mat.m[2][2] = cosf(theta);
-	mat.m[3][3] = 1;
+	mat.m[0][1] = sinf(theta);
+	mat.m[1][0] = -sinf(theta);
+	mat.m[1][1] = cosf(theta);
+	mat.m[2][2] = 1.0f;
+	mat.m[3][3] = 1.0f;
 	return mat;
 }
 
 Matrix4x4 Matrix4x4::Translation(float x, float y, float z)
 {
 	Matrix4x4 mat;
-	mat.m[0][0] = 1;
-	mat.m[1][1] = 1;
-	mat.m[2][2] = 1;
-	mat.m[3][3] = 1;
+	mat.m[0][0] = 1.f;
+	mat.m[1][1] = 1.f;
+	mat.m[2][2] = 1.f;
+	mat.m[3][3] = 1.f;
 	mat.m[3][0] = x;
 	mat.m[3][1] = y;
 	mat.m[3][2] = z;
@@ -115,8 +115,34 @@ Matrix4x4 Matrix4x4::Projection(float zNear, float zFar, float fov, float aspect
 	mat.m[3][2] = (-zFar * zNear) / (zFar - zNear);
 	mat.m[2][3] = 1.0f;
 	mat.m[3][3] = 0.0f;
-	
 	return mat;
+}
+
+Matrix4x4 Matrix4x4::PointAt(const Vector& pos, const Vector& target, const Vector& up)
+{
+	Vector newForward = unit(target - pos);
+	Vector newUp = unit(up - newForward * dot(up, newForward));
+	Vector newRight = cross(newUp, newForward);
+
+	Matrix4x4 mat;
+	mat.m[0][0] = newRight.x;	mat.m[0][1] = newRight.y;	mat.m[0][2] = newRight.z;	mat.m[0][3] = 0.0f;
+	mat.m[1][0] = newUp.x;		mat.m[1][1] = newUp.y;		mat.m[1][2] = newUp.z;		mat.m[1][3] = 0.0f;
+	mat.m[2][0] = newForward.x;	mat.m[2][1] = newForward.y;	mat.m[2][2] = newForward.z;	mat.m[2][3] = 0.0f;
+	mat.m[3][0] = pos.x;		mat.m[3][1] = pos.y;		mat.m[3][2] = pos.z;		mat.m[3][3] = 1.0f;
+	return mat;
+}
+
+Matrix4x4 Matrix4x4::QuickInverse(const Matrix4x4& mat) // Only for Rotation/Translation Matrices
+{
+	Matrix4x4 matrix;
+	matrix.m[0][0] = mat.m[0][0]; matrix.m[0][1] = mat.m[1][0]; matrix.m[0][2] = mat.m[2][0]; matrix.m[0][3] = 0.0f;
+	matrix.m[1][0] = mat.m[0][1]; matrix.m[1][1] = mat.m[1][1]; matrix.m[1][2] = mat.m[2][1]; matrix.m[1][3] = 0.0f;
+	matrix.m[2][0] = mat.m[0][2]; matrix.m[2][1] = mat.m[1][2]; matrix.m[2][2] = mat.m[2][2]; matrix.m[2][3] = 0.0f;
+	matrix.m[3][0] = -(mat.m[3][0] * matrix.m[0][0] + mat.m[3][1] * matrix.m[1][0] + mat.m[3][2] * matrix.m[2][0]);
+	matrix.m[3][1] = -(mat.m[3][0] * matrix.m[0][1] + mat.m[3][1] * matrix.m[1][1] + mat.m[3][2] * matrix.m[2][1]);
+	matrix.m[3][2] = -(mat.m[3][0] * matrix.m[0][2] + mat.m[3][1] * matrix.m[1][2] + mat.m[3][2] * matrix.m[2][2]);
+	matrix.m[3][3] = 1.0f;
+	return matrix;
 }
 
 Vector operator*(const Matrix4x4& mat, const Vector& u)
