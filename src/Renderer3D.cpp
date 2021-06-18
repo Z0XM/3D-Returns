@@ -9,7 +9,7 @@ Renderer3D::Renderer3D(const sf::Vector2u& winSize)
 
 	cube.loadFromObjectFile("data/teapot.obj");
 
-	matProj = Matrix4x4::Projection(0.1, 1000.0f, 90.0f, (float)winSize.y / (float)winSize.x);
+	matProj = Matrix4x4::Projection(-0.1, -1000.0f, 90.0f, (float)winSize.y / (float)winSize.x);
 
 	fTheta = 0.f;
 
@@ -18,45 +18,40 @@ Renderer3D::Renderer3D(const sf::Vector2u& winSize)
 
 Renderer3D::~Renderer3D()
 {
-	
+
 }
 
 void Renderer3D::clear()
 {
-	
+
 	this->trianglestoRaster.clear();
 }
 
 void Renderer3D::update(float dt)
 {
+	//fTheta += 0.01;
+
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))camera.y += 5 * dt;
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))camera.y -= 5 * dt;
 
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))camera.x -= 5 * dt;
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))camera.x += 5 * dt;
 
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))yaw -= 2 * dt;
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))yaw += 2 * dt;
+	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))yaw -= 2 * dt;
+	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))yaw += 2 * dt;
 
-	Vector forward = lookDir * (8.0f * dt);
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))camera = camera + forward;
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))camera = camera - forward;
+	//Vector forward = lookDir * (8.0f * dt);
+	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))camera = camera + forward;
+	//if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))camera = camera - forward;*/
 
 
 	Matrix4x4 matWorld =
 		Matrix4x4::Identity() *
 		Matrix4x4::RotationZ(fTheta * 0.5f) *
 		Matrix4x4::RotationX(fTheta) *
-		Matrix4x4::Translation(0, 0, 5.f);
+		Matrix4x4::Translation(0, 0, -5.f);
 
-	Vector up{ 0.f,1.f,0.f };
-	Vector target{ 0.f, 0.f, 1.f };
-	Matrix4x4 matCameraRot = Matrix4x4::RotationY(yaw);
-	lookDir = matCameraRot * target;
-	target = camera + lookDir;
 
-	Matrix4x4 matCamera = Matrix4x4::PointAt(camera, target, up);
-	Matrix4x4 matView = Matrix4x4::QuickInverse(matCamera);
 
 	sf::Color COLOR = sf::Color::White;
 	COLOR.a = 0;
@@ -68,8 +63,8 @@ void Renderer3D::update(float dt)
 		Vector normal = unit(cross(triTransformed[1] - triTransformed[0], triTransformed[2] - triTransformed[0]));
 
 		if (dot(normal, triTransformed[0] - camera) < 0.0f) {
-			
-			Triangle triViewed = matView * triTransformed;
+
+			Triangle triViewed = /*matView */ triTransformed;
 
 			Triangle triProjected = matProj * triViewed;
 
@@ -85,16 +80,16 @@ void Renderer3D::update(float dt)
 			triProjected[1].x *= 0.5f * winSize.x; triProjected[1].y *= 0.5f * winSize.y;
 			triProjected[2].x *= 0.5f * winSize.x; triProjected[2].y *= 0.5f * winSize.y;
 
-			float dp = dot(unit({ 0, 0, -1 }), normal);  //  lightDir * normal
+			float dp = dot(unit({ 0,0,1 }), normal);  //  lightDir * normal
 			triProjected.color = sf::Color(COLOR.r * dp, COLOR.g * dp, COLOR.b * dp);
-			
+
 			trianglestoRaster.push_back(triProjected);
 		}
 	}
 
 	sort(trianglestoRaster.begin(), trianglestoRaster.end(), [](Triangle& a, Triangle& b) {
-		return (a[0].z + a[1].z + a[2].z) / 3.0f > (b[0].z + b[1].z + b[2].z) / 3.0f;
-	});
+		return (a[0].z + a[1].z + a[2].z) / 3.0f < (b[0].z + b[1].z + b[2].z) / 3.0f;
+		});
 }
 
 void Renderer3D::drawTriangles(sf::RenderWindow& window)

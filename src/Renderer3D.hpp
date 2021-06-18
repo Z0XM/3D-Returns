@@ -9,7 +9,7 @@ class Renderer3D{
 	Matrix4x4 matProj;
 	Vector camera, lookDir;
 
-	float fTheta, yaw;
+	float fTheta;
 
 	std::vector<Triangle> trianglestoRaster;
 

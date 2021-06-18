@@ -111,9 +111,9 @@ Matrix4x4 Matrix4x4::Projection(float zNear, float zFar, float fov, float aspect
 
 	mat.m[0][0] = aspectRatio * fovRad;
 	mat.m[1][1] = fovRad;
-	mat.m[2][2] = zFar / (zFar - zNear);
+	mat.m[2][2] = -zFar / (zFar - zNear);
 	mat.m[3][2] = (-zFar * zNear) / (zFar - zNear);
-	mat.m[2][3] = 1.0f;
+	mat.m[2][3] = -1.0f;
 	mat.m[3][3] = 0.0f;
 	return mat;
 }
@@ -148,10 +148,10 @@ Matrix4x4 Matrix4x4::QuickInverse(const Matrix4x4& mat) // Only for Rotation/Tra
 Vector operator*(const Matrix4x4& mat, const Vector& u)
 {
 	Vector v;
-	v.x = u.x * mat.m[0][0] + u.y * mat.m[1][0] + u.z * mat.m[2][0] + mat.m[3][0];
-	v.y = u.x * mat.m[0][1] + u.y * mat.m[1][1] + u.z * mat.m[2][1] + mat.m[3][1];
-	v.z = u.x * mat.m[0][2] + u.y * mat.m[1][2] + u.z * mat.m[2][2] + mat.m[3][2];
-	v.w = u.x * mat.m[0][3] + u.y * mat.m[1][3] + u.z * mat.m[2][3] + mat.m[3][3];
+	v.x = u.x * mat.m[0][0] + u.y * mat.m[1][0] + u.z * mat.m[2][0] + u.w * mat.m[3][0];
+	v.y = u.x * mat.m[0][1] + u.y * mat.m[1][1] + u.z * mat.m[2][1] + u.w * mat.m[3][1];
+	v.z = u.x * mat.m[0][2] + u.y * mat.m[1][2] + u.z * mat.m[2][2] + u.w * mat.m[3][2];
+	v.w = u.x * mat.m[0][3] + u.y * mat.m[1][3] + u.z * mat.m[2][3] + u.w * mat.m[3][3];
 	return v;
 }
 
