@@ -7,7 +7,7 @@ class Renderer3D{
 
 	Mesh cube;
 	Matrix4x4 matProj;
-	Vector camera, lookDir;
+	Vector camera, lookDir, cameraAngle;
 
 	float fTheta;
 
