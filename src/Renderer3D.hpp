@@ -11,7 +11,7 @@ class Renderer3D{
 
 	float fTheta;
 
-	std::vector<Triangle> trianglestoRaster;
+	std::vector<Triangle> trianglesToRaster;
 
 	void drawTriangles(sf::RenderWindow& window);
 

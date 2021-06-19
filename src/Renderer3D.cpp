@@ -1,7 +1,7 @@
 #include "Renderer3D.hpp"
 #include <iostream>
 #include <algorithm>
-
+#include <list>
 
 Renderer3D::Renderer3D(const sf::Vector2u& winSize)
 {
@@ -26,15 +26,15 @@ Renderer3D::~Renderer3D()
 void Renderer3D::clear()
 {
 
-	this->trianglestoRaster.clear();
+	this->trianglesToRaster.clear();
 }
 
 void Renderer3D::update(float dt)
 {
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))cameraAngle.y -= 2 * dt;
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))cameraAngle.y += 2 * dt;
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))cameraAngle.x -= 2 * dt;
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))cameraAngle.x += 2 * dt;
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))cameraAngle.y -= 4 * dt;
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))cameraAngle.y += 4 * dt;
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))cameraAngle.x -= 4 * dt;
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))cameraAngle.x += 4 * dt;
 
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))camera.x -= 5 * dt;
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))camera.x += 5 * dt;
@@ -66,51 +66,79 @@ void Renderer3D::update(float dt)
 		Vector normal = unit(cross(triTransformed[1] - triTransformed[0], triTransformed[2] - triTransformed[0]));
 
 		if (dot(normal, triTransformed[0] - camera) < 0.0f) {
-
+			
 			Triangle triViewed = viewMat * triTransformed;
 
-			Triangle triProjected = matProj * triViewed;
+			std::vector<Triangle> clippedTriangles = clipTriangleAgainstPlane({ 0,0,-0.1 }, { 0,0,-1 }, triViewed);
 
-			triProjected[0] = triProjected[0] / triProjected[0].w;
-			triProjected[1] = triProjected[1] / triProjected[1].w;
-			triProjected[2] = triProjected[2] / triProjected[2].w;
+			for (auto& clippedtri : clippedTriangles) {
+				Triangle triProjected = matProj * clippedtri;
 
-			Vector offset{ 1, 1, 0 };
-			triProjected[0] = triProjected[0] + offset;
-			triProjected[1] = triProjected[1] + offset;
-			triProjected[2] = triProjected[2] + offset;
-			triProjected[0].x *= 0.5f * winSize.x; triProjected[0].y *= 0.5f * winSize.y;
-			triProjected[1].x *= 0.5f * winSize.x; triProjected[1].y *= 0.5f * winSize.y;
-			triProjected[2].x *= 0.5f * winSize.x; triProjected[2].y *= 0.5f * winSize.y;
+				triProjected[0] = triProjected[0] / triProjected[0].w;
+				triProjected[1] = triProjected[1] / triProjected[1].w;
+				triProjected[2] = triProjected[2] / triProjected[2].w;
 
-			float dp = abs(dot(unit(lookDir * -1), normal));  //  lightDir * normal
-			triProjected.color = sf::Color(COLOR.r * dp, COLOR.g * dp, COLOR.b * dp);
+				Vector offset{ 1, 1, 0 };
+				triProjected[0] = triProjected[0] + offset;
+				triProjected[1] = triProjected[1] + offset;
+				triProjected[2] = triProjected[2] + offset;
+				triProjected[0].x *= 0.5f * winSize.x; triProjected[0].y *= 0.5f * winSize.y;
+				triProjected[1].x *= 0.5f * winSize.x; triProjected[1].y *= 0.5f * winSize.y;
+				triProjected[2].x *= 0.5f * winSize.x; triProjected[2].y *= 0.5f * winSize.y;
 
-			trianglestoRaster.push_back(triProjected);
+				float dp = std::max(0.1f, abs(dot(unit(lookDir * -1), normal)));  //  lightDir * normal
+				triProjected.color = sf::Color(COLOR.r * dp, COLOR.g * dp, COLOR.b * dp);
+
+				trianglesToRaster.push_back(triProjected);
+			}
 		}
 	}
 
-	sort(trianglestoRaster.begin(), trianglestoRaster.end(), [](Triangle& a, Triangle& b) {
+	sort(trianglesToRaster.begin(), trianglesToRaster.end(), [](Triangle& a, Triangle& b) {
 		return (a[0].z + a[1].z + a[2].z) / 3.0f < (b[0].z + b[1].z + b[2].z) / 3.0f;
 		});
 }
 
 void Renderer3D::drawTriangles(sf::RenderWindow& window)
 {
-	for (auto& tri : trianglestoRaster) {
-		sf::Vertex faces[3] = {
-			{{tri[0].x, tri[0].y}, tri.color },
-			{{tri[1].x, tri[1].y}, tri.color},
-			{{tri[2].x, tri[2].y}, tri.color}
-		};
-		sf::Vertex lines[4] = {
-			{{tri[0].x, tri[0].y}, sf::Color::Red },
-			{{tri[1].x, tri[1].y}, sf::Color::Red},
-			{{tri[2].x, tri[2].y}, sf::Color::Red},
-			{{tri[0].x, tri[0].y}, sf::Color::Red }
-		};
-		window.draw(faces, 3, sf::Triangles);
-		//window.draw(lines, 4, sf::LinesStrip);
+	for (auto& tri : trianglesToRaster) {
+		std::vector<Triangle> clippedTriangles;
+		std::list<Triangle> listTriangles;
+		listTriangles.push_back(tri);
+
+		for (int p = 0; p < 4; p++)
+		{
+			int N = listTriangles.size();
+			while (N--)
+			{
+				Triangle test = listTriangles.front();
+				listTriangles.pop_front();
+
+				if (p == 0)clippedTriangles = clipTriangleAgainstPlane({ 0,0,0 }, { 0,1,0 }, test);
+				if (p == 1)clippedTriangles = clipTriangleAgainstPlane({ 0,winSize.y-1,0 }, { 0,-1,0 }, test);
+				if (p == 2)clippedTriangles = clipTriangleAgainstPlane({ 0,0,0 }, { 1,0,0 }, test);
+				if (p == 3)clippedTriangles = clipTriangleAgainstPlane({ winSize.x-1,0,0 }, { -1,0,0 }, test);
+
+				for (int k = 0; k < clippedTriangles.size(); k++)
+					listTriangles.push_back(clippedTriangles[k]);
+			}
+		}
+
+		for (auto& tri : listTriangles) {
+			sf::Vertex faces[3] = {
+				{{tri[0].x, tri[0].y}, tri.color },
+				{{tri[1].x, tri[1].y}, tri.color},
+				{{tri[2].x, tri[2].y}, tri.color}
+			};
+			sf::Vertex lines[4] = {
+				{{tri[0].x, tri[0].y}, sf::Color::Red },
+				{{tri[1].x, tri[1].y}, sf::Color::Red},
+				{{tri[2].x, tri[2].y}, sf::Color::Red},
+				{{tri[0].x, tri[0].y}, sf::Color::Red }
+			};
+			window.draw(faces, 3, sf::Triangles);
+			//window.draw(lines, 4, sf::LinesStrip);
+		}
 	}
 }
 

@@ -176,3 +176,56 @@ Matrix4x4 operator*(const Matrix4x4& a, const Matrix4x4& b)
 
 	return mat;
 }
+
+Vector intersectionPlaneLine(const Vector& p, const Vector& _n, const Vector& a, const Vector& b)
+{
+	Vector n = unit(_n);
+	return a + (b - a) * (dot(p - a, n) / dot(b - a, n));
+}
+
+std::vector<Triangle> clipTriangleAgainstPlane(const Vector& p, const Vector& _n, const Triangle& tri)
+{
+	Vector n = unit(_n);
+
+	auto distance = [&](const Vector& point)
+	{
+		return dot(n, point - p);
+	};
+
+	std::vector<Vector> insidePoints, outsidePoints;
+	
+	for (int i = 0; i < 3; i++) {
+		if (distance(tri[i]) >= 0)insidePoints.push_back(tri[i]);
+		else outsidePoints.push_back(tri[i]);
+	}
+
+	if (insidePoints.empty())return {};
+	
+	if (insidePoints.size() == 3)return { tri };
+
+	if (insidePoints.size() == 1 && outsidePoints.size() == 2)
+	{
+		Triangle clipped;
+		clipped[0] = insidePoints[0];
+		clipped[1] = intersectionPlaneLine(p, n, insidePoints[0], outsidePoints[0]);
+		clipped[2] = intersectionPlaneLine(p, n, insidePoints[0], outsidePoints[1]);
+		return { clipped };
+	}
+
+	if (insidePoints.size() == 2 && outsidePoints.size() == 1)
+	{
+		std::vector<Triangle> clipped(2, Triangle());
+		clipped[0][0] = insidePoints[0];
+		clipped[0][1] = insidePoints[1];
+		clipped[0][2] = intersectionPlaneLine(p, n, insidePoints[0], outsidePoints[0]);
+
+		clipped[1][0] = insidePoints[1];
+		clipped[1][1] = clipped[0][2];
+		clipped[1][2] = intersectionPlaneLine(p, n, insidePoints[1], outsidePoints[0]);
+		
+		return clipped;
+	}
+
+	return {};
+}
+

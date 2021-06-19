@@ -39,3 +39,6 @@ struct Matrix4x4 {
 Vector operator*(const Matrix4x4& mat, const Vector& u);
 Triangle operator*(const Matrix4x4& mat, const Triangle& t);
 Matrix4x4 operator*(const Matrix4x4& a, const Matrix4x4& b);
+
+Vector intersectionPlaneLine(const Vector& p, const Vector& n, const Vector& a, const Vector& b);
+std::vector<Triangle> clipTriangleAgainstPlane(const Vector& p, const Vector& n, const Triangle& tri);
